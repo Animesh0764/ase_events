@@ -1,4 +1,6 @@
-from django.core.mail import send_mail, send_mass_mail
+from typing import List
+
+from django.core.mail import send_mass_mail
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -6,7 +8,7 @@ from ..models.attendees import Attendee
 from ..models.email import Email
 
 
-class EmailSerializer(serializers.Serializer):
+class EmailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Email
@@ -33,14 +35,33 @@ class EmailSerializer(serializers.Serializer):
 
         subject = self.validated_data.get('subject', 'Default Subject')
         body = self.validated_data.get('body', 'Default Body')
+        recipients = [r.strip() for r in recipients.split(',')]
         
         try:
 
-            send_mass_mail(
-                (subject, body, 'bib@bib.com', recipients),
-            )
+            import resend
+
+            resend.api_key = "re_8KWgEiWE_CR4851VCE5vbuLGpjh4xiUWB"
+
+            for recipient in recipients:
+                params: resend.Emails.SendParams = {
+                    "from": "Test <onboarding@resend.dev>",
+                    "to": [recipient],
+                    "subject": subject,
+                    "html": body
+                }
+
+            email = resend.Emails.send(params)
+            print(email)
+
+            # send_mass_mail([
+            #     (subject, body, 'animeshsingh0704@gmail.com', [recipient]) for recipient in recipients
+            # ])
+
 
             self.validated_data['sent_at'] = timezone.now()
 
         except Exception as e:
             raise serializers.ValidationError(str(e))
+        
+        
